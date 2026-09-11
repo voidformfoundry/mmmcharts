@@ -6,6 +6,9 @@ the Mind Monitor app for Muse EEG headbands.
 The file is parsed in the browser with the File API. Nothing is uploaded, and there is no backend, no
 database and no analytics. Open the page, drop a CSV on it, and the whole session is charted.
 
+**Live:** <https://voidformfoundry.github.io/mmmcharts/> — press *See a sample session* to load the
+69-minute demo recording in `sample/` without a file of your own.
+
 ## What it charts
 
 Columns are matched by name, so exports from different Mind Monitor versions and headband models work, and
@@ -57,6 +60,12 @@ browsers.
 The repository is the site. GitHub Pages serves it from the default branch root with no workflow; any other
 static host works the same way. `.nojekyll` disables Jekyll processing, and `404.html` is self-contained so
 it renders correctly when served from an arbitrary path.
+
+## Sample data
+
+`sample/sample-session.csv` is a real Muse S recording published with the site so the viewer can be tried
+without your own export. See `sample/README.md` for what it contains. Your own recordings stay private:
+`.gitignore` excludes `*.csv` everywhere except that one file.
 
 ## Dependencies
 

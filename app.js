@@ -1481,7 +1481,7 @@
   }
 
   // ---------- file loading ----------
-  async function loadFile(file) {
+  async function loadFile(file, isSample = false) {
     const status = $('load-status'), bar = $('progress-bar'), txt = $('load-text'), err = $('load-error');
     err.hidden = true; status.hidden = false; bar.style.width = '2%'; txt.textContent = `Reading ${file.name} (${fmtBytes(file.size)})…`;
     await yieldToUI();
@@ -1496,6 +1496,7 @@
       session = s;
       txt.textContent = 'Building charts…'; bar.style.width = '100%';
       await yieldToUI();
+      s.isSample = isSample;
       showResults(s, file);
     } catch (e) {
       console.error(e);
@@ -1506,10 +1507,33 @@
     }
   }
 
+  const SAMPLE_URL = 'sample/sample-session.csv';
+
+  // Fetches the demo recording shipped with the site and runs it through the normal load path.
+  async function loadSample(btn) {
+    const status = $('load-status'), bar = $('progress-bar'), txt = $('load-text'), err = $('load-error');
+    if (btn) btn.disabled = true;
+    err.hidden = true; status.hidden = false; bar.style.width = '4%'; txt.textContent = 'Fetching the sample session…';
+    try {
+      const res = await fetch(SAMPLE_URL, { cache: 'force-cache' });
+      if (!res.ok) throw new Error(`the server returned ${res.status}`);
+      const text = await res.text();
+      bar.style.width = '8%';
+      await loadFile(new File([text], 'sample-session.csv', { type: 'text/csv' }), true);
+    } catch (e) {
+      console.error(e);
+      status.hidden = true; bar.style.width = '0';
+      err.textContent = 'Could not load the sample session: ' + (e && e.message ? e.message : e);
+      err.hidden = false;
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   function showResults(s, file) {
     $('upload-view').hidden = true;
     $('results-view').hidden = false;
-    const chip = $('file-chip'); chip.textContent = file.name; chip.hidden = false;
+    const chip = $('file-chip'); chip.textContent = s.isSample ? 'Sample session' : file.name; chip.hidden = false;
     $('btn-new-file').hidden = false;
     s.fileName = file.name;
     renderSummary(s, file);
@@ -1546,6 +1570,7 @@
   document.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f && $('results-view').hidden === false) { showUpload(); loadFile(f); } });
 
   $('btn-new-file').addEventListener('click', showUpload);
+  $('btn-sample').addEventListener('click', e => loadSample(e.currentTarget));
   $('help-close').addEventListener('click', () => $('help-dialog').close());
   $('help-dialog').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.close(); });
   $('btn-reset-zoom').addEventListener('click', resetZoom);

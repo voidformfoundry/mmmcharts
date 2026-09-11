@@ -3,4 +3,6 @@ node_modules/
 *.log
 
 # Never commit recordings: Mind Monitor exports are personal data.
+# The one exception is the demo recording published with the site.
 *.csv
+!sample/sample-session.csv

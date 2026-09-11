@@ -264,3 +264,13 @@ dialog.support h2 { margin: 6px 0 10px; }
 /* ---------- relative-to-baseline controls ---------- */
 .control-group { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .control select:disabled { opacity: 0.5; }
+
+/* ---------- sample session link ---------- */
+.sample-line { display: flex; align-items: baseline; justify-content: center; gap: 8px; flex-wrap: wrap;
+               margin: 14px 0 0; font-size: 14px; color: var(--ink-2); }
+.sample-line .muted { font-size: 13px; }
+.link-btn { font: inherit; font-weight: 500; color: var(--accent); background: none; border: 0; padding: 0;
+            cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.link-btn:hover { text-decoration-thickness: 2px; }
+.link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+.link-btn:disabled { color: var(--muted); cursor: progress; text-decoration: none; }

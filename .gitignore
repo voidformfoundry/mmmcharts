@@ -1,0 +1,6 @@
+.DS_Store
+node_modules/
+*.log
+
+# Never commit recordings: Mind Monitor exports are personal data.
+*.csv

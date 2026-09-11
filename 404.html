@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Page not found</title>
+  <style>
+    /* Self-contained: a 404 is served from arbitrary paths, where relative asset links would not resolve. */
+    :root { color-scheme: light; --page: #f9f9f7; --ink: #0b0b0b; --ink-2: #52514e; --accent: #2a78d6; }
+    @media (prefers-color-scheme: dark) {
+      :root { color-scheme: dark; --page: #0d0d0d; --ink: #ffffff; --ink-2: #c3c2b7; --accent: #3987e5; }
+    }
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+           background: var(--page); color: var(--ink);
+           font: 15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; text-align: center; }
+    main { padding: 24px; }
+    h1 { font-size: 24px; font-weight: 600; margin: 0 0 8px; }
+    p { color: var(--ink-2); margin: 0 0 16px; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Page not found</h1>
+    <p>That address does not exist on this site.</p>
+    <p><a href="./">Back to the viewer</a></p>
+  </main>
+</body>
+</html>

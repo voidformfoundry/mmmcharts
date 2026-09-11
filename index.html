@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>MindMonitor EEG Viewer</title>
+  <meta name="description" content="Upload a Mind Monitor (Muse headband) CSV log and chart every column: EEG band powers, raw EEG, motion, optics, heart rate, signal quality, battery and events. Parsed entirely in your browser.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Cpath d='M4 18 L8 18 L10 10 L13 24 L16 14 L19 20 L22 16 L25 18 L28 18' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="vendor/uPlot.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="./">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="currentColor" opacity=".12"/><path d="M4 18 L8 18 L10 10 L13 24 L16 14 L19 20 L22 16 L25 18 L28 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>MindMonitor EEG Viewer</span>
+      </a>
+      <div class="topbar-actions">
+        <span id="file-chip" class="file-chip" hidden></span>
+        <button id="btn-new-file" class="btn btn-ghost" type="button" hidden>Load another file</button>
+        <a class="bmc" href="https://www.buymeacoffee.com/voidform" target="_blank" rel="noopener"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a pie&amp;emoji=🥧&amp;slug=voidform&amp;button_colour=004d65&amp;font_colour=ffffff&amp;font_family=Comic&amp;outline_colour=ffffff&amp;coffee_colour=FFDD00" alt="Buy me a pie" height="34"></a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <!-- Upload state -->
+    <section id="upload-view" class="upload-view">
+      <div class="hero">
+        <h1>Chart a Mind Monitor session</h1>
+        <p class="lede">Drop the <code>.csv</code> log exported by the Mind Monitor app for Muse headbands. You get smoothed band-power trends, a per-band detail panel, band power by electrode, heart rate, a session heatmap, blink / jaw-clench events over head movement, stacked raw EEG, and every other logged signal.</p>
+      </div>
+      <label id="dropzone" class="dropzone" for="file-input" tabindex="0">
+        <input id="file-input" type="file" accept=".csv,text/csv" hidden>
+        <svg viewBox="0 0 24 24" width="36" height="36" aria-hidden="true"><path d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <strong>Drop a Mind Monitor CSV here, or click to choose a file</strong>
+        <span class="muted">Files such as <code>mindMonitor_2026-08-26--20-33-12.csv</code>. Unzip <code>.zip</code> exports first.</span>
+      </label>
+      <p class="privacy">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.2-7 9.5C8 19.2 5 15.5 5 11V6l7-3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>The file is parsed entirely in your browser.<br>Nothing is uploaded or stored on a server.</span>
+      </p>
+      <div id="load-status" class="load-status" hidden>
+        <div class="progress"><div id="progress-bar" class="progress-bar"></div></div>
+        <span id="load-text">Reading file…</span>
+      </div>
+      <div id="load-error" class="error" role="alert" hidden></div>
+    </section>
+
+    <!-- Results state -->
+    <section id="results-view" hidden>
+      <header class="session-head">
+        <h1 class="session-title">EEG Recording</h1>
+        <p id="session-sub" class="session-sub"></p>
+      </header>
+      <div id="summary" class="summary"></div>
+
+      <div class="toolbar" role="toolbar" aria-label="View controls">
+        <div class="tabs" role="tablist">
+          <button class="tab is-active" role="tab" aria-selected="true" data-tab="charts" id="tab-charts">Charts</button>
+          <button class="tab" role="tab" aria-selected="false" data-tab="table" id="tab-table">Table</button>
+        </div>
+        <div class="toolbar-right">
+          <label class="control">Smoothing
+            <select id="sel-smooth">
+              <option value="0">Off</option>
+              <option value="5">5 s</option>
+              <option value="10" selected>10 s</option>
+              <option value="15">15 s</option>
+              <option value="30">30 s</option>
+              <option value="60">60 s</option>
+            </select>
+          </label>
+          <span class="control-group">
+            <label class="check"><input type="checkbox" id="chk-relative"> Relative to baseline</label>
+            <label class="control">Baseline
+              <select id="sel-baseline" disabled>
+                <option value="median" selected>Session median</option>
+                <option value="first1">First 1 min</option>
+                <option value="first2">First 2 min</option>
+                <option value="first5">First 5 min</option>
+              </select>
+            </label>
+            <button id="btn-relative-help" class="help-btn" type="button" title="What does relative to baseline mean?" aria-label="What does relative to baseline mean?">?</button>
+          </span>
+          <label class="check"><input type="checkbox" id="chk-events"> Mark blinks &amp; jaw clenches on every chart</label>
+          <button id="btn-reset-zoom" class="btn" type="button">Reset zoom</button>
+          <button id="btn-download" class="btn btn-download" type="button" title="Download every chart on this page as one PNG image">Download charts</button>
+        </div>
+      </div>
+      <ul class="hint-box" aria-label="How to use the charts">
+        <li>Drag across any chart to zoom in on a time range (all charts follow).</li>
+        <li>Double-click a chart or use Reset zoom to zoom out.</li>
+        <li>Hover a line or its legend entry to highlight it; click a legend entry to hide or show that series.</li>
+      </ul>
+
+      <div id="panel-charts" role="tabpanel" aria-labelledby="tab-charts"></div>
+      <div id="panel-table" role="tabpanel" aria-labelledby="tab-table" hidden></div>
+    </section>
+  </main>
+
+  <dialog id="help-dialog" class="help" aria-labelledby="help-title">
+    <div class="help-inner">
+      <button id="help-close" class="help-close" type="button" aria-label="Close">✕</button>
+      <h2 id="help-title"></h2>
+      <div id="help-graphic" class="help-graphic"></div>
+      <div id="help-body" class="help-body"></div>
+    </div>
+  </dialog>
+
+  <dialog id="support-dialog" class="help support" aria-labelledby="support-title">
+    <div class="help-inner support-inner">
+      <button id="support-close" class="help-close" type="button" aria-label="Close">✕</button>
+      <h2 id="support-title">Your charts are ready to download</h2>
+      <p class="support-text">This viewer is free, has no ads and runs entirely in your browser. If it is useful to you, a slice of pie helps keep it that way.</p>
+      <div id="support-bmc" class="support-bmc"></div>
+      <button id="support-proceed" class="btn btn-download btn-proceed" type="button">Proceed to download</button>
+    </div>
+  </dialog>
+
+  <footer class="footer muted">
+    <span>Feedback, bug reports or a file that does not chart properly? Email <a href="mailto:voidformfoundry@gmail.com">voidformfoundry@gmail.com</a>.</span>
+    <span>Mind Monitor and Muse are trademarks of their respective owners; this viewer is an independent tool.</span>
+  </footer>
+
+  <script src="vendor/uPlot.iife.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

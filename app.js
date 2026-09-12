@@ -592,7 +592,7 @@
         blocks.push({ type: 'section', title: 'Derived indices' });
         blocks.push({ type: 'chart', spec: {
           id: 'indices', title: 'Relaxation & focus indices',
-          subtitle: `Power ratios from the electrode-averaged band powers: relaxation = alpha ÷ theta, focus = beta ÷ theta · dashed line = equal power (1:1) · ${smoothLabel()}`,
+          subtitle: `Power ratios from the electrode-averaged band powers: relaxation = alpha ÷ theta, focus = beta ÷ theta · read both together: the gap between them is alpha ÷ beta · dashed line = equal power (1:1) · ${smoothLabel()}`,
           height: 280, yLabel: 'power ratio', refLine: 0, ySplitsFn: doublingSplits, yValues: v => ratioLabel(v, '1:1'), legendWidth: '9ch',
           series: [
             { label: 'Relaxation (alpha : theta)', data: diffSeries(A, T), color: col('aqua'), value: ratioValue },
@@ -849,6 +849,34 @@
     'It is good for seeing which bands moved the most and when, and for comparing bands that live at very different absolute levels, such as gamma and delta. It changes only the band-power charts; the raw data, the heatmap and the table stay absolute.',
   ] });
 
+  function indicesSvg() {
+    const muted = CHROME[mode()].tick, rnd = prng(19);
+    const relC = col('aqua'), focC = col('violet');
+    const y0 = 80, step = 20, yOf = d => y0 - d * step; // one step = one doubling
+    let s = svgOpen(360, 172);
+    for (const [d, label] of [[2, '\u00d74'], [1, '\u00d72'], [0, '1:1'], [-1, '\u00f72'], [-2, '\u00f74']]) {
+      const y = yOf(d);
+      s += `<line x1="56" y1="${y}" x2="288" y2="${y}" stroke="${muted}" stroke-width="${d === 0 ? 1.4 : 0.8}" ${d === 0 ? 'stroke-dasharray="4 4"' : 'opacity="0.4"'}/>`;
+      s += `<text x="50" y="${y + 4}" text-anchor="end" fill="currentColor" font-size="10">${label}</text>`;
+    }
+    const rel = [], foc = [];
+    for (let i = 0; i <= 46; i++) {
+      const t = i / 46, x = 56 + t * 232;
+      rel.push([x, yOf(0.95 + 0.3 * Math.sin(t * 5.0) + (rnd() - 0.5) * 0.4)]);
+      foc.push([x, yOf(-0.5 + 0.28 * Math.sin(t * 3.4 + 1.6) + (rnd() - 0.5) * 0.4)]);
+    }
+    s += `<path d="${pathOf(rel)}" fill="none" stroke="${relC}" stroke-width="2" stroke-linejoin="round"/>`;
+    s += `<path d="${pathOf(foc)}" fill="none" stroke="${focC}" stroke-width="2" stroke-linejoin="round"/>`;
+    s += `<text x="294" y="${rel[rel.length - 1][1] + 4}" fill="currentColor" font-size="10">relaxation</text>`;
+    s += `<text x="294" y="${foc[foc.length - 1][1] + 4}" fill="currentColor" font-size="10">focus</text>`;
+    const gx = 150, ry = rel[Math.round(46 * (gx - 56) / 232)][1], fy = foc[Math.round(46 * (gx - 56) / 232)][1];
+    s += `<line x1="${gx}" y1="${ry + 4}" x2="${gx}" y2="${fy - 4}" stroke="${muted}" stroke-width="1.2"/>`;
+    s += `<path d="M${gx - 3} ${ry + 8} L${gx} ${ry + 3} L${gx + 3} ${ry + 8} M${gx - 3} ${fy - 8} L${gx} ${fy - 3} L${gx + 3} ${fy - 8}" fill="none" stroke="${muted}" stroke-width="1.2"/>`;
+    s += `<text x="${gx + 7}" y="${(ry + fy) / 2 + 3}" fill="currentColor" font-size="10">gap</text>`;
+    s += `<text x="56" y="164" fill="currentColor" font-size="10">gap between the lines = alpha \u00f7 beta (theta cancels out)</text>`;
+    return s + '</svg>';
+  }
+
   const bandList = () => ({ list: [
     ['Delta', 'Delta 1–4 Hz — dominant in deep sleep; large slow waves, also eye-movement artefacts'],
     ['Theta', 'Theta 4–8 Hz — drowsiness, light sleep, deep meditation'],
@@ -877,14 +905,20 @@
       relativeTips(),
       'Reading example: if alpha sits on the dashed line for most of the session and climbs to the ×2 gridline while your eyes are closed, alpha power doubled compared with its usual level in this session.',
     ] }),
-    indices: () => ({ title: 'Relaxation and focus indices', graphic: bandsSvg(), body: [
-      'Two ratios that Mind Monitor users often quote, computed from the electrode-averaged band powers: relaxation = alpha ÷ theta and focus = beta ÷ theta. Because the powers are stored as log10 values, the ratio is exactly 10 to the power of (alpha − theta), so no extra data are needed.',
-      'The axis is the ratio itself: 1:1 means the two bands have equal power, ×2 means the first band has twice the power of the second, ÷2 means half. The dashed line marks 1:1 and the legend shows the ratio at the cursor.',
-      'Rising alpha : theta usually goes with calm, eyes-closed relaxation. Rising beta : theta goes with alert engagement; its inverse, theta ÷ beta, is the classic attention marker, where a high value is associated with drowsiness or inattention.',
+    indices: () => ({ title: 'Relaxation and focus indices', graphic: indicesSvg(), body: [
+      'Two ratios that Mind Monitor users often quote, computed from the electrode-averaged band powers: relaxation is alpha divided by theta, focus is beta divided by theta. Mind Monitor stores log power, so each ratio is exactly 10 to the power of the difference between the two bands. These are exact values, not estimates.',
+      'Read both lines, as a pair. They are not two scores to choose between. Both are divided by theta, so where each line sits matters, and so does where they sit relative to each other.',
       { tips: [
-        'These are heuristics, not diagnoses. Absolute levels differ between people and between headband fits, so read trends within a session rather than comparing numbers across days.',
-        'Blinks and eye movement inflate delta and theta; jaw clenches and muscle tension inflate beta and gamma. Check Events & movement before trusting a spike.',
-        'The indices use the same smoothing as the band charts and are unaffected by the relative-to-baseline toggle, because a ratio already has its own reference (1:1).',
+        'Each line against the dashed 1:1 mark. Above it, that band has more power than theta; at the ×2 gridline, twice as much. Follow the shape over time rather than fixating on the number.',
+        'The vertical gap between the two lines is alpha divided by beta, because the shared theta cancels out. A wide gap with relaxation on top is the calm, eyes-closed pattern. The lines crossing, so focus sits on top, is the alert, engaged pattern.',
+        'When both lines move the same way at the same moment, it is theta that moved, not alpha or beta. Both dipping together usually means theta rose, from drowsiness or a burst of blinks, so check Events & movement before reading anything into it.',
+        'Which line to watch depends on what you were doing. For meditation or winding down, follow relaxation. For concentration, follow focus; its inverse, theta divided by beta, is the classic attention marker, where a high value suggests inattention.',
+      ] },
+      'A worked example: relaxation at 2 and focus at 0.8 means alpha holds twice the power of theta while beta holds a little less than theta, and alpha holds about two and a half times the power of beta. That is a calm, settled stretch. If relaxation then falls to 1 while focus climbs to 1.5, the balance has tipped towards alert engagement.',
+      { tips: [
+        'These are heuristics, not diagnoses. Absolute levels differ between people and between headband fits, so compare within a session rather than across days.',
+        'Artefacts move both lines. Blinks and eye movement inflate theta, which drags both indices down; jaw clenches and muscle tension inflate beta, which lifts focus on its own.',
+        'The indices follow the toolbar smoothing setting and are unaffected by the relative-to-baseline toggle, because a ratio already carries its own reference at 1:1.',
       ] },
     ] }),
     'band-detail': () => ({ title: 'Band powers — per band detail', graphic: scaleSvg() + smoothingSvg(), body: [

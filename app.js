@@ -238,6 +238,8 @@
 
   // ---------- baselines, ratios and the ×/÷ axis ----------
   const LOG2 = Math.log10(2);
+  // Tick steps in minutes, coarse enough to stay readable when the plot is narrow.
+  const MINUTE_INCRS = [0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120];
   function baselineOf(arr) {
     if (baselineMode !== 'median' && session) {
       const mins = +baselineMode.slice(5), n = upperBound(session.tmin, mins);
@@ -400,8 +402,22 @@
     const ch = CHROME[mode()];
     const font = '12px system-ui, -apple-system, "Segoe UI", sans-serif';
     const base = { stroke: ch.tick, font, labelFont: font, grid: { show: true, stroke: ch.grid, width: 1 }, ticks: { show: true, stroke: ch.axis, width: 1, size: 6 }, gap: 6 };
-    const xAxis = { ...base, show: !spec.hideXAxis, space: 70 };
-    if (!spec.hideXAxis) { xAxis.label = spec.xLabel ?? 'time (min)'; xAxis.labelSize = 18; xAxis.labelGap = 2; }
+    const xAxis = { ...base, space: spec.xSpace ?? 70 };
+    // A stacked strip hides its tick labels but keeps the axis, because uPlot drops an axis's
+    // gridlines along with the axis itself; size 0 means it still takes no vertical room.
+    if (spec.hideXAxis) {
+      xAxis.size = 0;
+      xAxis.gap = 0;
+      xAxis.ticks = { ...base.ticks, show: false };
+      xAxis.values = (u, splits) => splits.map(() => '');
+    } else {
+      xAxis.label = spec.xLabel ?? 'time (min)';
+      xAxis.labelSize = 18;
+      xAxis.labelGap = 2;
+    }
+    // Allowed tick steps in minutes; uPlot picks the smallest that still clears `space`,
+    // so a wide chart lands on 5-minute lines and a narrow one falls back to 10, 15 or 30.
+    if (spec.xIncrs) xAxis.incrs = spec.xIncrs;
     const yAxis = { ...base, size: spec.yAxisSize ?? axisSize };
     if (spec.yLabel) { yAxis.label = spec.yLabel; yAxis.labelSize = 18; yAxis.labelGap = 4; }
     if (spec.ySplits || spec.ySplitsFn) {
@@ -569,14 +585,15 @@
       if (rel) { const [lo, hi] = minMaxOf(bands.map(b => shifted(smoothed(s.bandMean[b]), base[b]))); const pad = (hi - lo || 1) * 0.12; stripRange = [lo - pad, hi + pad]; }
       blocks.push({ type: 'strips', id: 'band-detail', title: rel ? 'Band powers — per band detail · relative to baseline' : 'Band powers — per band detail',
         subtitle: rel
-          ? `All bands on one shared scale as change from their own baseline (${baselineLabel()}) · thin = raw samples, thick = ${smoothLabel()} · dashed = baseline · +0.3 Bel = ×2, +1 Bel = ×10`
-          : `Each band on its own scale, averaged across electrodes · thin = raw samples, thick = ${smoothLabel()} · dashed = that band's session median · 0 Bel = 1 µV²`,
+          ? `All bands on one shared scale as change from their own baseline (${baselineLabel()}) · thin = raw samples, thick = ${smoothLabel()} · dashed = baseline · gridlines every 5 min · +0.3 Bel = ×2, +1 Bel = ×10`
+          : `Each band on its own scale, averaged across electrodes · thin = raw samples, thick = ${smoothLabel()} · dashed = that band's session median · gridlines every 5 min · 0 Bel = 1 µV²`,
         strips: bands.map((b, i) => {
           const med = robustStats(s.bandMean[b]).median;
           return {
             id: 'strip-' + b, label: b, sub: BAND_HZ[b], color: col(BAND_HUE[b]),
             refLine: rel ? 0 : med, sub2: rel ? 'baseline ' + fmtSigned(base[b]) : 'median ' + fmtSigned(med),
-            height: i === bands.length - 1 ? 170 : 140, hideXAxis: i < bands.length - 1, yAxisSize: 56, legend: false, focus: false,
+            height: i === bands.length - 1 ? 188 : 140, hideXAxis: i < bands.length - 1, yAxisSize: 56, legend: false, focus: false,
+            xIncrs: MINUTE_INCRS, xSpace: 46,
             yRange: stripRange || undefined, ...relAxis,
             series: [
               { label: b + ' raw', data: rel ? shifted(s.bandMean[b], base[b]) : s.bandMean[b], color: col(BAND_HUE[b]), width: 1, alpha: 0.35, value: rel ? relValue : undefined },
